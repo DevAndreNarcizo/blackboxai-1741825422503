@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Fin Assist{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
+        <div class="text-sm text-gray-500">
+            Última atualização: {{ now.strftime('%d/%m/%Y %H:%M') }}
+        </div>
+    </div>
+
+    <!-- Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="card">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-700">Receitas</h3>
+                <i class="fas fa-arrow-up text-green-500 text-xl"></i>
+            </div>
+            <p class="text-3xl font-bold text-green-600">R$ {{ "%.2f"|format(resumo.receitas) }}</p>
+            <p class="text-sm text-gray-500 mt-2">Total do mês atual</p>
+        </div>
+
+        <div class="card">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-700">Despesas</h3>
+                <i class="fas fa-arrow-down text-red-500 text-xl"></i>
+            </div>
+            <p class="text-3xl font-bold text-red-600">R$ {{ "%.2f"|format(resumo.despesas) }}</p>
+            <p class="text-sm text-gray-500 mt-2">Total do mês atual</p>
+        </div>
+
+        <div class="card">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-700">Saldo</h3>
+                <i class="fas fa-wallet text-blue-500 text-xl"></i>
+            </div>
+            <p class="text-3xl font-bold {{ 'text-green-600' if resumo.saldo >= 0 else 'text-red-600' }}">
+                R$ {{ "%.2f"|format(resumo.saldo) }}
+            </p>
+            <p class="text-sm text-gray-500 mt-2">Saldo atual</p>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+        <!-- Despesas por Categoria -->
+        <div class="card">
+            <h3 class="text-lg font-semibold text-gray-700 mb-4">Despesas por Categoria</h3>
+            <div class="space-y-4">
+                {% for categoria in resumo.despesas_por_categoria %}
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm font-medium text-gray-600">{{ categoria.categoria }}</span>
+                        <span class="text-sm font-semibold text-gray-800">R$ {{ "%.2f"|format(categoria.total) }}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-indigo-600 h-2 rounded-full" 
+                             style="width: {{ (categoria.total/resumo.despesas*100) if resumo.despesas > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Orçamentos -->
+        <div class="card">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-700">Orçamentos</h3>
+                <a href="{{ url_for('budgets') }}" class="text-indigo-600 hover:text-indigo-800 text-sm">Ver todos</a>
+            </div>
+            <div class="space-y-4">
+                {% for orcamento in orcamentos %}
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm font-medium text-gray-600">{{ orcamento.categoria }}</span>
+                        <span class="text-sm font-semibold text-gray-800">
+                            {{ "%.1f"|format(orcamento.valor_atual/orcamento.valor_limite*100) }}%
+                        </span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-indigo-600 h-2 rounded-full" 
+                             style="width: {{ (orcamento.valor_atual/orcamento.valor_limite*100) }}%"></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>R$ {{ "%.2f"|format(orcamento.valor_atual) }}</span>
+                        <span>R$ {{ "%.2f"|format(orcamento.valor_limite) }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Metas -->
+        <div class="card">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-700">Metas</h3>
+                <a href="{{ url_for('goals') }}" class="text-indigo-600 hover:text-indigo-800 text-sm">Ver todas</a>
+            </div>
+            <div class="space-y-4">
+                {% for meta in metas %}
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm font-medium text-gray-600">{{ meta.descricao }}</span>
+                        <span class="text-sm font-semibold {{ 'text-green-600' if meta.status == 'Concluída' else 'text-blue-600' }}">
+                            {{ meta.status }}
+                        </span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-indigo-600 h-2 rounded-full" 
+                             style="width: {{ (meta.valor_atual/meta.valor_alvo*100) }}%"></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>R$ {{ "%.2f"|format(meta.valor_atual) }}</span>
+                        <span>R$ {{ "%.2f"|format(meta.valor_alvo) }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Últimas Transações -->
+        <div class="card">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-700">Últimas Transações</h3>
+                <a href="{{ url_for('transactions') }}" class="text-indigo-600 hover:text-indigo-800 text-sm">Ver todas</a>
+            </div>
+            <div class="space-y-3">
+                {% for transacao in transacoes %}
+                <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center {{ 'bg-green-100' if transacao.tipo == 'Receita' else 'bg-red-100' }}">
+                            <i class="fas {{ 'fa-arrow-up text-green-600' if transacao.tipo == 'Receita' else 'fa-arrow-down text-red-600' }}"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-800">{{ transacao.descricao }}</p>
+                            <p class="text-xs text-gray-500">{{ transacao.categoria }}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-semibold {{ 'text-green-600' if transacao.tipo == 'Receita' else 'text-red-600' }}">
+                            R$ {{ "%.2f"|format(transacao.valor) }}
+                        </p>
+                        <p class="text-xs text-gray-500">{{ transacao.data_formatada }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
