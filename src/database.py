@@ -20,7 +20,7 @@ class DatabaseManager:
             with sqlite3.connect(self.db_file) as conn:
                 cursor = conn.cursor()
                 
-                # Criar tabela de transações
+                # Criar tabelas necessárias
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS transacoes (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,6 +29,31 @@ class DatabaseManager:
                         data TEXT NOT NULL,
                         descricao TEXT,
                         categoria TEXT NOT NULL
+                    )
+                ''')
+                
+                # Criar tabela de orçamentos
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS orcamentos (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        categoria TEXT NOT NULL,
+                        valor_limite REAL NOT NULL,
+                        mes INTEGER NOT NULL,
+                        ano INTEGER NOT NULL,
+                        UNIQUE(categoria, mes, ano)
+                    )
+                ''')
+                
+                # Criar tabela de metas
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS metas (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        descricao TEXT NOT NULL,
+                        valor_alvo REAL NOT NULL,
+                        valor_atual REAL DEFAULT 0,
+                        data_inicio TEXT NOT NULL,
+                        data_fim TEXT NOT NULL,
+                        status TEXT DEFAULT 'Em Andamento'
                     )
                 ''')
                 
@@ -140,8 +165,105 @@ class DatabaseManager:
             WHERE tipo = 'Despesa'
         ''')[0]
         
+        # Buscar resumo por categoria do mês atual
+        from datetime import datetime
+        mes_atual = datetime.now().month
+        ano_atual = datetime.now().year
+        
+        despesas_por_categoria = self.fetch_all('''
+            SELECT categoria, COALESCE(SUM(valor), 0) as total
+            FROM transacoes
+            WHERE tipo = 'Despesa'
+            AND strftime('%m', data) = ?
+            AND strftime('%Y', data) = ?
+            GROUP BY categoria
+        ''', (f"{mes_atual:02d}", str(ano_atual)))
+        
         return {
             'receitas': receitas,
             'despesas': despesas,
-            'saldo': receitas - despesas
+            'saldo': receitas - despesas,
+            'despesas_por_categoria': despesas_por_categoria
         }
+
+    # Métodos para Orçamentos
+    def add_orcamento(self, categoria, valor_limite, mes, ano):
+        """Adiciona ou atualiza um orçamento."""
+        try:
+            self.execute_query('''
+                INSERT INTO orcamentos (categoria, valor_limite, mes, ano)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(categoria, mes, ano)
+                DO UPDATE SET valor_limite = ?
+            ''', (categoria, valor_limite, mes, ano, valor_limite))
+            return True
+        except Exception as e:
+            logging.error(f"Erro ao adicionar orçamento: {e}")
+            return False
+
+    def get_orcamentos(self, mes=None, ano=None):
+        """Retorna os orçamentos para um mês/ano específico."""
+        if mes is None:
+            mes = datetime.now().month
+        if ano is None:
+            ano = datetime.now().year
+
+        return self.fetch_all('''
+            SELECT o.id, o.categoria, o.valor_limite,
+                   COALESCE((
+                       SELECT SUM(t.valor)
+                       FROM transacoes t
+                       WHERE t.categoria = o.categoria
+                       AND strftime('%m', t.data) = ?
+                       AND strftime('%Y', t.data) = ?
+                       AND t.tipo = 'Despesa'
+                   ), 0) as valor_atual
+            FROM orcamentos o
+            WHERE o.mes = ? AND o.ano = ?
+        ''', (f"{mes:02d}", str(ano), mes, ano))
+
+    def delete_orcamento(self, id):
+        """Remove um orçamento."""
+        self.execute_query("DELETE FROM orcamentos WHERE id = ?", (id,))
+
+    # Métodos para Metas
+    def add_meta(self, descricao, valor_alvo, data_inicio, data_fim):
+        """Adiciona uma nova meta."""
+        return self.insert('''
+            INSERT INTO metas (descricao, valor_alvo, data_inicio, data_fim)
+            VALUES (?, ?, ?, ?)
+        ''', (descricao, valor_alvo, data_inicio, data_fim))
+
+    def get_metas(self):
+        """Retorna todas as metas."""
+        return self.fetch_all('''
+            SELECT id, descricao, valor_alvo, valor_atual, 
+                   data_inicio, data_fim, status
+            FROM metas
+            ORDER BY data_fim
+        ''')
+
+    def update_meta(self, id, descricao, valor_alvo, valor_atual, data_inicio, data_fim, status):
+        """Atualiza uma meta existente."""
+        self.execute_query('''
+            UPDATE metas
+            SET descricao = ?, valor_alvo = ?, valor_atual = ?,
+                data_inicio = ?, data_fim = ?, status = ?
+            WHERE id = ?
+        ''', (descricao, valor_alvo, valor_atual, data_inicio, data_fim, status, id))
+
+    def delete_meta(self, id):
+        """Remove uma meta."""
+        self.execute_query("DELETE FROM metas WHERE id = ?", (id,))
+
+    def atualizar_progresso_meta(self, id, valor_atual):
+        """Atualiza o progresso de uma meta."""
+        self.execute_query('''
+            UPDATE metas
+            SET valor_atual = ?,
+                status = CASE 
+                    WHEN ? >= valor_alvo THEN 'Concluída'
+                    ELSE 'Em Andamento'
+                END
+            WHERE id = ?
+        ''', (valor_atual, valor_atual, id))
