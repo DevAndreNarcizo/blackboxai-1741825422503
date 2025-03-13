@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Categorias - Fin Assist{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold text-gray-800">Categorias</h1>
+        <button onclick="document.getElementById('modal-categoria').classList.add('active')" 
+                class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+            <i class="fas fa-plus mr-2"></i>Nova Categoria
+        </button>
+    </div>
+
+    <!-- Categories Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for categoria in categorias %}
+        <div class="card">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                        <i class="fas fa-tag text-indigo-600"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800">{{ categoria }}</h3>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="editarCategoria('{{ categoria }}')" 
+                            class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <form action="{{ url_for('excluir_categoria', nome=categoria) }}" 
+                          method="POST" class="inline"
+                          onsubmit="return confirm('Tem certeza que deseja excluir esta categoria? Isso afetará todas as transações relacionadas.')">
+                        <button type="submit" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Estatísticas da Categoria -->
+            <div class="mt-4 pt-4 border-t border-gray-100">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-500">Total de Transações</p>
+                        <p class="text-lg font-semibold text-gray-800">{{ estatisticas.get(categoria, {}).get('total', 0) }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Valor Total</p>
+                        <p class="text-lg font-semibold text-gray-800">
+                            R$ {{ "%.2f"|format(estatisticas.get(categoria, {}).get('valor', 0)) }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modal Nova Categoria -->
+<div id="modal-categoria" class="modal" role="dialog">
+    <div class="modal-content">
+        <button onclick="this.closest('.modal').classList.remove('active')" 
+                class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times"></i>
+        </button>
+        <h3 class="text-xl font-semibold mb-6">Nova Categoria</h3>
+        <form action="{{ url_for('adicionar_categoria') }}" method="POST">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nome da Categoria</label>
+                    <input type="text" name="nome" required 
+                           class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                           placeholder="Ex: Alimentação">
+                </div>
+                <div class="flex justify-end pt-4">
+                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                        Salvar Categoria
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Editar Categoria -->
+<div id="modal-editar-categoria" class="modal" role="dialog">
+    <div class="modal-content">
+        <button onclick="this.closest('.modal').classList.remove('active')" 
+                class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times"></i>
+        </button>
+        <h3 class="text-xl font-semibold mb-6">Editar Categoria</h3>
+        <form id="form-editar-categoria" method="POST">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nome da Categoria</label>
+                    <input type="text" name="novo_nome" required 
+                           class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                           id="edit-categoria-nome">
+                </div>
+                <div class="flex justify-end pt-4">
+                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                        Salvar Alterações
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function editarCategoria(nome) {
+        const form = document.getElementById('form-editar-categoria');
+        form.action = `/atualizar_categoria/${encodeURIComponent(nome)}`;
+        document.getElementById('edit-categoria-nome').value = nome;
+        document.getElementById('modal-editar-categoria').classList.add('active');
+    }
+</script>
+{% endblock %}
