@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Metas Financeiras - Fin Assist{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold text-gray-800">Metas Financeiras</h1>
+        <button onclick="document.getElementById('modal-meta').classList.add('active')" 
+                class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+            <i class="fas fa-plus mr-2"></i>Nova Meta
+        </button>
+    </div>
+
+    <!-- Goals Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for meta in metas %}
+        <div class="card">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">{{ meta[1] }}</h3>
+                    <p class="text-sm text-gray-500">
+                        {{ meta[4].strftime('%d/%m/%Y') }} até {{ meta[5].strftime('%d/%m/%Y') }}
+                    </p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="editarMeta({{ meta[0] }}, '{{ meta[1] }}', {{ meta[2] }}, {{ meta[3] }}, '{{ meta[4] }}', '{{ meta[5] }}', '{{ meta[6] }}')" 
+                            class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <form action="{{ url_for('excluir_meta', id=meta[0]) }}" 
+                          method="POST" class="inline"
+                          onsubmit="return confirm('Tem certeza que deseja excluir esta meta?')">
+                        <button type="submit" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Valor Atual</span>
+                    <span class="font-medium">R$ {{ "%.2f"|format(meta[3]) }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Meta</span>
+                    <span class="font-medium">R$ {{ "%.2f"|format(meta[2]) }}</span>
+                </div>
+            </div>
+
+            {% set progresso = (meta[3] / meta[2] * 100) %}
+            <div class="mt-4">
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="font-medium text-gray-600">{{ "%.1f"|format(progresso) }}%</span>
+                    <span class="px-2 py-1 rounded-full text-xs font-medium
+                        {% if meta[6] == 'Concluída' %}
+                            bg-green-100 text-green-800
+                        {% else %}
+                            bg-blue-100 text-blue-800
+                        {% endif %}">
+                        {{ meta[6] }}
+                    </span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="h-2 rounded-full {{ 'bg-green-600' if meta[6] == 'Concluída' else 'bg-indigo-600' }}"
+                         style="width: {{ min(100, progresso) }}%"></div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modal Nova Meta -->
+<div id="modal-meta" class="modal" role="dialog">
+    <div class="modal-content">
+        <button onclick="this.closest('.modal').classList.remove('active')" 
+                class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times"></i>
+        </button>
+        <h3 class="text-xl font-semibold mb-6">Nova Meta</h3>
+        <form action="{{ url_for('adicionar_meta') }}" method="POST">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                    <input type="text" name="descricao" required 
+                           class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Valor Alvo (R$)</label>
+                    <input type="text" name="valor_alvo" required 
+                           class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                           placeholder="0,00">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
+                        <input type="date" name="data_inicio" required 
+                               class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+                        <input type="date" name="data_fim" required 
+                               class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <div class="flex justify-end pt-4">
+                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                        Salvar Meta
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Editar Meta -->
+<div id="modal-editar-meta" class="modal" role="dialog">
+    <div class="modal-content">
+        <button onclick="this.closest('.modal').classList.remove('active')" 
+                class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times"></i>
+        </button>
+        <h3 class="text-xl font-semibold mb-6">Editar Meta</h3>
+        <form id="form-editar-meta" method="POST">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                    <input type="text" name="descricao" required 
+                           class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                           id="edit-meta-descricao">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Valor Alvo (R$)</label>
+                    <input type="text" name="valor_alvo" required 
+                           class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                           id="edit-meta-valor-alvo">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Valor Atual (R$)</label>
+                    <input type="text" name="valor_atual" required 
+                           class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                           id="edit-meta-valor-atual">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
+                        <input type="date" name="data_inicio" required 
+                               class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                               id="edit-meta-data-inicio">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+                        <input type="date" name="data_fim" required 
+                               class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                               id="edit-meta-data-fim">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select name="status" required 
+                            class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                            id="edit-meta-status">
+                        <option value="Em Andamento">Em Andamento</option>
+                        <option value="Concluída">Concluída</option>
+                    </select>
+                </div>
+                <div class="flex justify-end pt-4">
+                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                        Salvar Alterações
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Formatar inputs de valor
+    document.querySelectorAll('input[name="valor_alvo"], input[name="valor_atual"]').forEach(input => {
+        input.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            value = (value/100).toFixed(2);
+            value = value.replace('.', ',');
+            value = value.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+            e.target.value = value;
+        });
+    });
+
+    // Função para editar meta
+    function editarMeta(id, descricao, valorAlvo, valorAtual, dataInicio, dataFim, status) {
+        const form = document.getElementById('form-editar-meta');
+        form.action = `/atualizar_meta/${id}`;
+        
+        document.getElementById('edit-meta-descricao').value = descricao;
+        document.getElementById('edit-meta-valor-alvo').value = 
+            valorAlvo.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        document.getElementById('edit-meta-valor-atual').value = 
+            valorAtual.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        document.getElementById('edit-meta-data-inicio').value = dataInicio;
+        document.getElementById('edit-meta-data-fim').value = dataFim;
+        document.getElementById('edit-meta-status').value = status;
+        
+        document.getElementById('modal-editar-meta').classList.add('active');
+    }
+
+    // Inicializar datas
+    document.addEventListener('DOMContentLoaded', function() {
+        const hoje = new Date().toISOString().split('T')[0];
+        document.querySelector('input[name="data_inicio"]').value = hoje;
+        document.querySelector('input[name="data_fim"]').value = hoje;
+    });
+</script>
+{% endblock %}
