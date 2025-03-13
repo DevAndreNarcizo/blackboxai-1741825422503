@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Transações - Fin Assist{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold text-gray-800">Transações</h1>
+        <button onclick="document.getElementById('modal-transacao').classList.add('active')" 
+                class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+            <i class="fas fa-plus mr-2"></i>Nova Transação
+        </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-6">
+        <form class="grid grid-cols-1 md:grid-cols-4 gap-4" method="GET">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                <select name="tipo" class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="">Todos</option>
+                    <option value="Receita">Receita</option>
+                    <option value="Despesa">Despesa</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                <select name="categoria" class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="">Todas</option>
+                    {% for categoria in categorias %}
+                    <option value="{{ categoria }}">{{ categoria }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Data Inicial</label>
+                <input type="date" name="data_inicio" class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Data Final</label>
+                <input type="date" name="data_fim" class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+            </div>
+            <div class="md:col-span-4 flex justify-end">
+                <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                    <i class="fas fa-search mr-2"></i>Filtrar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Transactions List -->
+    <div class="card">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left border-b border-gray-200">
+                        <th class="pb-3 font-semibold text-gray-600">Data</th>
+                        <th class="pb-3 font-semibold text-gray-600">Tipo</th>
+                        <th class="pb-3 font-semibold text-gray-600">Descrição</th>
+                        <th class="pb-3 font-semibold text-gray-600">Categoria</th>
+                        <th class="pb-3 font-semibold text-gray-600">Valor</th>
+                        <th class="pb-3 font-semibold text-gray-600">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for transacao in transacoes %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="py-3">{{ transacao.data_formatada }}</td>
+                        <td class="py-3">
+                            <span class="px-2 py-1 rounded-full text-xs font-medium
+                                {{ 'bg-green-100 text-green-800' if transacao.tipo == 'Receita' else 'bg-red-100 text-red-800' }}">
+                                {{ transacao.tipo }}
+                            </span>
+                        </td>
+                        <td class="py-3">{{ transacao.descricao }}</td>
+                        <td class="py-3">{{ transacao.categoria }}</td>
+                        <td class="py-3 font-medium {{ 'text-green-600' if transacao.tipo == 'Receita' else 'text-red-600' }}">
+                            R$ {{ "%.2f"|format(transacao.valor) }}
+                        </td>
+                        <td class="py-3">
+                            <div class="flex gap-2">
+                                <button onclick="editarTransacao({{ transacao.id }})" 
+                                        class="text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <form action="{{ url_for('excluir_transacao', id=transacao.id) }}" 
+                                      method="POST" class="inline"
+                                      onsubmit="return confirm('Tem certeza que deseja excluir esta transação?')">
+                                    <button type="submit" class="text-red-600 hover:text-red-800">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nova Transação -->
+<div id="modal-transacao" class="modal" role="dialog">
+    <div class="modal-content">
+        <button onclick="this.closest('.modal').classList.remove('active')" 
+                class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times"></i>
+        </button>
+        <h3 class="text-xl font-semibold mb-6">Nova Transação</h3>
+        <form action="{{ url_for('adicionar_transacao') }}" method="POST">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                    <select name="tipo" required class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="Receita">Receita</option>
+                        <option value="Despesa">Despesa</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                    <input type="text" name="descricao" required 
+                           class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                    <select name="categoria" required class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                        {% for categoria in categorias %}
+                        <option value="{{ categoria }}">{{ categoria }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Valor (R$)</label>
+                    <input type="text" name="valor" required 
+                           class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                           placeholder="0,00">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Data</label>
+                    <input type="date" name="data" required 
+                           class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div class="flex justify-end pt-4">
+                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                        Salvar Transação
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Inicializar data atual
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelector('input[name="data"]').valueAsDate = new Date();
+    });
+
+    // Formatar input de valor
+    document.querySelector('input[name="valor"]').addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        value = (value/100).toFixed(2);
+        value = value.replace('.', ',');
+        value = value.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+        e.target.value = value;
+    });
+</script>
+{% endblock %}
